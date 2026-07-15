@@ -57,6 +57,7 @@
         .success { background-color: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; }
         .error { background-color: #fef2f2; border: 1px solid #fca5a5; color: #991b1b; }
         .price { font-size: 28px; font-weight: bold; margin: 10px 0; }
+        .loader { font-size: 14px; color: #64748b; display: none; margin-top: 10px; }
     </style>
 </head>
 <body>
@@ -70,6 +71,8 @@
         <button onclick="fetchStockPrice()">Get Price</button>
     </div>
 
+    <div id="loadingStatus" class="loader">Fetching live price...</div>
+
     <div id="result" class="result-box">
         <div id="stockTitle" style="font-weight: 600;"></div>
         <div id="stockPrice" class="price"></div>
@@ -81,6 +84,7 @@
     async function fetchStockPrice() {
         let input = document.getElementById('scripInput').value.trim().toUpperCase();
         const resultDiv = document.getElementById('result');
+        const loadingStatus = document.getElementById('loadingStatus');
         const stockTitle = document.getElementById('stockTitle');
         const stockPrice = document.getElementById('stockPrice');
         const stockDetails = document.getElementById('stockDetails');
@@ -92,20 +96,34 @@
             input = `${input}.BO`;
         }
 
-        // Using an open CORS proxy endpoint for Yahoo Finance data
-        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${input}?interval=1m&range=1d`;
+        resultDiv.style.display = 'none';
+        loadingStatus.style.display = 'block';
+
+        const targetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${input}?interval=1m&range=1d`;
+        
+        // Wrapping the request with a free public CORS proxy
+        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
 
         try {
-            const response = await fetch(url);
-            if (!response.ok) throw new Error('Stock not found');
+            const response = await fetch(proxyUrl);
+            if (!response.ok) throw new Error('Network error via proxy');
             
-            const data = await response.json();
+            const proxyData = await response.json();
+            
+            // Allorigins bundles the response into a JSON object string under the .contents key
+            const data = JSON.parse(proxyData.contents);
+            
+            if (!data.chart || !data.chart.result) {
+                throw new Error('Invalid ticker');
+            }
+
             const meta = data.chart.result[0].meta;
             const price = meta.regularMarketPrice;
             const prevClose = meta.previousClose;
             const netChange = price - prevClose;
             const pctChange = (netChange / prevClose) * 100;
 
+            loadingStatus.style.display = 'none';
             resultDiv.style.display = 'block';
             resultDiv.className = 'result-box success';
             stockTitle.innerText = input.replace('.BO', '');
@@ -119,11 +137,12 @@
             stockDetails.style.color = netChange >= 0 ? '#166534' : '#991b1b';
 
         } catch (err) {
+            loadingStatus.style.display = 'none';
             resultDiv.style.display = 'block';
             resultDiv.className = 'result-box error';
             stockTitle.innerText = 'Error';
             stockPrice.innerText = '';
-            stockDetails.innerText = 'Invalid scrip code or data unavailable. Try using the numeric BSE ID (e.g., 500325).';
+            stockDetails.innerText = 'Could not retrieve data. Double-check your scrip name or numeric BSE ID.';
             stockDetails.style.color = '#991b1b';
         }
     }
