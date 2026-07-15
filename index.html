@@ -11,21 +11,28 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
+            min-height: 100vh;
             margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .container {
+            width: 100%;
+            max-width: 500px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
         }
         .card {
             background: #ffffff;
             padding: 30px;
             border-radius: 12px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-            width: 100%;
-            max-width: 400px;
             text-align: center;
         }
         h2 { color: #1e293b; margin-top: 0; }
         .input-group {
-            margin: 20px 0;
+            margin: 20px 0 10px 0;
             display: flex;
             gap: 10px;
         }
@@ -39,7 +46,7 @@
         }
         button {
             padding: 12px 20px;
-            background-color: #0284c7;
+            background-color: #2563eb;
             color: white;
             border: none;
             border-radius: 6px;
@@ -47,91 +54,95 @@
             cursor: pointer;
             transition: background 0.2s;
         }
-        button:hover { background-color: #0369a1; }
-        .result-box {
-            margin-top: 20px;
-            padding: 15px;
-            border-radius: 8px;
+        button:hover { background-color: #1d4ed8; }
+        .hint-text {
+            color: #64748b; 
+            font-size: 13px;
+            text-align: left;
+            margin: 0;
+            line-height: 1.4;
+        }
+        #widget-container {
+            width: 100%;
+            min-height: 220px;
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
             display: none;
         }
-        .success { background-color: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; }
-        .error { background-color: #fef2f2; border: 1px solid #fca5a5; color: #991b1b; }
-        .price { font-size: 28px; font-weight: bold; margin: 10px 0; }
-        .loader { font-size: 14px; color: #64748b; display: none; margin-top: 10px; }
     </style>
 </head>
 <body>
 
-<div class="card">
-    <h2>BSE Stock Tracker</h2>
-    <p style="color: #64748b; font-size: 14px;">Enter a BSE Scrip Name (e.g., RELIANCE, TCS) or 6-digit Code (e.g., 500325)</p>
-    
-    <div class="input-group">
-        <input type="text" id="scripInput" placeholder="e.g., RELIANCE" onkeypress="handleKeyPress(event)">
-        <button onclick="fetchStockPrice()">Get Price</button>
+<div class="container">
+    <div class="card">
+        <h2>BSE Live Stock Tracker</h2>
+        
+        <div class="input-group">
+            <input type="text" id="scripInput" placeholder="e.g., 500325 or RELIANCE" onkeypress="handleKeyPress(event)">
+            <button onclick="loadStockWidget()">Track Price</button>
+        </div>
+        
+        <p class="hint-text">
+            💡 **Tips:** <br>
+            • For BSE numerical tracking, type the code directly (e.g., `500325` for Reliance). <br>
+            • For standard text lookups, type the name directly (e.g., `TCS`, `INFY`, `RELIANCE`).
+        </p>
     </div>
 
-    <div id="loadingStatus" class="loader">Fetching live price via Google Finance...</div>
-
-    <div id="result" class="result-box">
-        <div id="stockTitle" style="font-weight: 600;"></div>
-        <div id="stockPrice" class="price"></div>
-        <div id="stockDetails" style="font-size: 12px; color: #64748b; margin-top: 5px;"></div>
-    </div>
+    <!-- The interactive live widget mounts dynamically here -->
+    <div id="widget-container"></div>
 </div>
 
 <script>
-    async function fetchStockPrice() {
+    function loadStockWidget() {
         let input = document.getElementById('scripInput').value.trim().toUpperCase();
-        const resultDiv = document.getElementById('result');
-        const loadingStatus = document.getElementById('loadingStatus');
-        const stockTitle = document.getElementById('stockTitle');
-        const stockPrice = document.getElementById('stockPrice');
-        const stockDetails = document.getElementById('stockDetails');
-
+        const container = document.getElementById('widget-container');
+        
         if (!input) return;
 
-        // Automatically format for GoogleFinance's BSE structure (e.g., BOM:RELIANCE or BOM:500325)
-        let bseTicker = input.startsWith("BOM:") ? input : `BOM:${input}`;
+        // Clear any old instances sitting in the wrapper
+        container.innerHTML = '';
+        container.style.display = 'block';
 
-        resultDiv.style.display = 'none';
-        loadingStatus.style.display = 'block';
+        // Determine symbol layout route
+        // If the user inputs a 6-digit number, target BSE natively. Otherwise, check general lookup.
+        let tradingViewSymbol = "";
+        const isNumericBse = /^\d{6}$/.test(input);
 
-        // ⚠️ REPLACE THIS STRING WITH YOUR ACTUAL DEPLOYED GOOGLE WEB APP URL
-        const googleAppUrl = `https://script.google.com/macros/s/AKfycbwWLHuLdM6H8DD3Obci0w171fArUVMHxUUUIxcui502tJQsWRBw2Cg0R-khviYXxT9A8g/exec?ticker=${encodeURIComponent(bseTicker)}`;
-
-        try {
-            const response = await fetch(googleAppUrl);
-            const data = await response.json();
-            
-            if (!data.success) throw new Error('Invalid Stock Symbol');
-
-            loadingStatus.style.display = 'none';
-            resultDiv.style.display = 'block';
-            resultDiv.className = 'result-box success';
-            stockTitle.innerText = input;
-            
-            // Format using the Indian Numbering System for clear local reading
-            stockPrice.innerText = `₹ ${data.price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
-            
-            const direction = data.change >= 0 ? '▲' : '▼';
-            stockDetails.innerText = `${direction} ${Math.abs(data.change).toFixed(2)} (${data.pct.toFixed(2)}%) Today`;
-            stockDetails.style.color = data.change >= 0 ? '#166534' : '#991b1b';
-
-        } catch (err) {
-            loadingStatus.style.display = 'none';
-            resultDiv.style.display = 'block';
-            resultDiv.className = 'result-box error';
-            stockTitle.innerText = 'Error';
-            stockPrice.innerText = '';
-            stockDetails.innerText = 'Unable to fetch data. Ensure you typed a valid BSE ticker or 6-digit text code.';
-            stockDetails.style.color = '#991b1b';
+        if (isNumericBse) {
+            tradingViewSymbol = `BSE:${input}`;
+        } else {
+            // Text values evaluate robustly across standard indexes
+            tradingViewSymbol = `BSE:${input}`;
         }
+
+        // Dynamically instantiate the tracking element
+        const script = document.createElement('script');
+        script.type = 'text/javascript';
+        script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js';
+        script.async = true;
+        
+        // Configuration payload parameters
+        script.text = JSON.stringify({
+            "symbol": tradingViewSymbol,
+            "width": "100%",
+            "height": "100%",
+            "locale": "in",
+            "dateRange": "1D",
+            "colorTheme": "light",
+            "isTransparent": false,
+            "autosize": true,
+            "largeChartUrl": ""
+        });
+
+        container.appendChild(script);
     }
 
     function handleKeyPress(event) {
         if (event.key === 'Enter') {
-            fetchStockPrice();
+            loadStockWidget();
         }
     }
 </script>
