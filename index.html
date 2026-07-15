@@ -15,7 +15,7 @@ async function fetchStockPrice() {
     loadingStatus.style.display = 'block';
 
     // PASTE YOUR GOOGLE APPS SCRIPT WEB APP URL HERE
-    const googleAppUrl = `YOUR_CONVERTED_GOOGLE_APPS_SCRIPT_URL_HERE?ticker=${encodeURIComponent(bseTicker)}`;
+    const googleAppUrl = `https://script.google.com/macros/s/AKfycbwWLHuLdM6H8DD3Obci0w171fArUVMHxUUUIxcui502tJQsWRBw2Cg0R-khviYXxT9A8g/exec?ticker=${encodeURIComponent(bseTicker)}`;
 
     try {
         const response = await fetch(googleAppUrl);
