@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BSE Live Stock Tracker</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #f4f6f9;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .card {
+            background: #ffffff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+        h2 { color: #1e293b; margin-top: 0; }
+        .input-group {
+            margin: 20px 0;
+            display: flex;
+            gap: 10px;
+        }
+        input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 16px;
+            text-transform: uppercase;
+        }
+        button {
+            padding: 12px 20px;
+            background-color: #059669;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover { background-color: #047857; }
+        .result-box {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            display: none;
+        }
+        .success { background-color: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; }
+        .error { background-color: #fef2f2; border: 1px solid #fca5a5; color: #991b1b; }
+        .price { font-size: 28px; font-weight: bold; margin: 10px 0; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>BSE Stock Tracker</h2>
+    <p style="color: #64748b; font-size: 14px;">Enter a BSE Scrip Name (e.g., RELIANCE, TCS) or 6-digit Code (e.g., 500325)</p>
+    
+    <div class="input-group">
+        <input type="text" id="scripInput" placeholder="e.g., RELIANCE" onkeypress="handleKeyPress(event)">
+        <button onclick="fetchStockPrice()">Get Price</button>
+    </div>
+
+    <div id="result" class="result-box">
+        <div id="stockTitle" style="font-weight: 600;"></div>
+        <div id="stockPrice" class="price"></div>
+        <div id="stockDetails" style="font-size: 12px; color: #64748b; margin-top: 5px;"></div>
+    </div>
+</div>
+
+<script>
+    async function fetchStockPrice() {
+        let input = document.getElementById('scripInput').value.trim().toUpperCase();
+        const resultDiv = document.getElementById('result');
+        const stockTitle = document.getElementById('stockTitle');
+        const stockPrice = document.getElementById('stockPrice');
+        const stockDetails = document.getElementById('stockDetails');
+
+        if (!input) return;
+
+        // Ensure the ticker has the correct BSE suffix required by Yahoo Finance
+        if (!input.endsWith('.BO')) {
+            input = `${input}.BO`;
+        }
+
+        // Using an open CORS proxy endpoint for Yahoo Finance data
+        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${input}?interval=1m&range=1d`;
+
+        try {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error('Stock not found');
+            
+            const data = await response.json();
+            const meta = data.chart.result[0].meta;
+            const price = meta.regularMarketPrice;
+            const prevClose = meta.previousClose;
+            const netChange = price - prevClose;
+            const pctChange = (netChange / prevClose) * 100;
+
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result-box success';
+            stockTitle.innerText = input.replace('.BO', '');
+            
+            // Format using the Indian Numbering System
+            stockPrice.innerText = `₹ ${price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+            
+            // Show daily movement details
+            const direction = netChange >= 0 ? '▲' : '▼';
+            stockDetails.innerText = `${direction} ${Math.abs(netChange).toFixed(2)} (${pctChange.toFixed(2)}%) Today`;
+            stockDetails.style.color = netChange >= 0 ? '#166534' : '#991b1b';
+
+        } catch (err) {
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result-box error';
+            stockTitle.innerText = 'Error';
+            stockPrice.innerText = '';
+            stockDetails.innerText = 'Invalid scrip code or data unavailable. Try using the numeric BSE ID (e.g., 500325).';
+            stockDetails.style.color = '#991b1b';
+        }
+    }
+
+    function handleKeyPress(event) {
+        if (event.key === 'Enter') {
+            fetchStockPrice();
+        }
+    }
+</script>
+
+</body>
+</html>
